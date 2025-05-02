@@ -7,14 +7,14 @@ pred_len=30
 enc_size=10
 
 # Create necessary directories
-mkdir -p ./logs
-mkdir -p ./logs/$project_name
-mkdir -p ./logs/$project_name/$model_name
+mkdir -p ./learning-plane/logs
+mkdir -p ./learning-plane/logs/$project_name
+mkdir -p ./learning-plane/logs/$project_name/$model_name
 
-python -u ./TSLib/run.py \
+python -u ./libs/TSLib/run.py \
   --task_name long_term_forecast \
   --is_training 1 \
-  --root_path ./data/datascience_training \
+  --root_path ./learning-plane/data/datascience_training \
   --data_path preprocessed_data.csv \
   --model_id custom \
   --model $model_name \
