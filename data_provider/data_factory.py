@@ -19,19 +19,19 @@ data_dict = {
 }
 
 
-def data_provider(args, flag):
+def data_provider(args, flag, setting, encoder=None, scaler=None):
     Data = data_dict[args.data]
-    timeenc = 0 if args.embed != 'timeF' else 1
+    timeenc = 0 if args.embed != "timeF" else 1
 
-    shuffle_flag = False if (flag == 'test' or flag == 'TEST') else True
+    shuffle_flag = False if (flag == "test" or flag == "TEST") else True
     drop_last = False
     batch_size = args.batch_size
     freq = args.freq
 
-    if args.task_name == 'anomaly_detection':
+    if args.task_name == "anomaly_detection":
         drop_last = False
         data_set = Data(
-            args = args,
+            args=args,
             root_path=args.root_path,
             win_size=args.seq_len,
             flag=flag,
@@ -42,12 +42,13 @@ def data_provider(args, flag):
             batch_size=batch_size,
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
-            drop_last=drop_last)
+            drop_last=drop_last,
+        )
         return data_set, data_loader
-    elif args.task_name == 'classification':
+    elif args.task_name == "classification":
         drop_last = False
         data_set = Data(
-            args = args,
+            args=args,
             root_path=args.root_path,
             flag=flag,
         )
@@ -58,14 +59,14 @@ def data_provider(args, flag):
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last,
-            collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
+            collate_fn=lambda x: collate_fn(x, max_len=args.seq_len),
         )
         return data_set, data_loader
     else:
-        if args.data == 'm4':
+        if args.data == "m4":
             drop_last = False
         data_set = Data(
-            args = args,
+            args=args,
             root_path=args.root_path,
             data_path=args.data_path,
             flag=flag,
@@ -74,7 +75,11 @@ def data_provider(args, flag):
             target=args.target,
             timeenc=timeenc,
             freq=freq,
-            seasonal_patterns=args.seasonal_patterns
+            inverse=args.inverse,
+            categorical_cols=args.categorical_cols,
+            setting=setting,
+            encoder=encoder,
+            scaler=scaler,
         )
         print(flag, len(data_set))
         data_loader = DataLoader(
@@ -82,5 +87,6 @@ def data_provider(args, flag):
             batch_size=batch_size,
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
-            drop_last=drop_last)
+            drop_last=drop_last,
+        )
         return data_set, data_loader
