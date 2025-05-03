@@ -22,6 +22,7 @@ python -u ./libs/TSLib/run.py \
   --features MS \
   --target pipelines_status_realtime_pipeline_latency \
   --categorical_cols cluster \
+  --use_gpu True \
   --freq t \
   --inverse True \
   --pred_len $pred_len \

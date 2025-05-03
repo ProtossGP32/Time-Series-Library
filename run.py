@@ -412,6 +412,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.categorical_cols:
         args.categorical_cols = args.categorical_cols.split(",")
+    print(torch.cuda.is_available())
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device("cuda:{}".format(args.gpu))
         print("Using GPU")
