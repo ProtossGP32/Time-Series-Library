@@ -259,6 +259,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(
                 test_loader
             ):
+                # Add right after the dataloader provides the batch
+                print("Original shapes from dataloader:")
+                print("batch_x raw shape:", batch_x.shape)
+                print("batch_y raw shape:", batch_y.shape)
+                print("batch_x_mark raw shape:", batch_x_mark.shape)
+                print("batch_y_mark raw shape:", batch_y_mark.shape)
+                print("label_len:", self.args.label_len)
+                print("pred_len:", self.args.pred_len)
+
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
@@ -276,11 +285,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     .float()
                     .to(self.device)
                 )
-                # Add this before the model call in predict function
-                print("batch_x shape:", batch_x.shape)
-                print("batch_x_mark shape:", batch_x_mark.shape)
+                # Add right after dec_inp is created
+                print("After dec_inp creation:")
                 print("dec_inp shape:", dec_inp.shape)
-                print("batch_y_mark shape:", batch_y_mark.shape)
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
@@ -401,6 +408,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(
                 pred_loader
             ):
+                # Add right after the dataloader provides the batch
+                print("Original shapes from dataloader:")
+                print("batch_x raw shape:", batch_x.shape)
+                print("batch_y raw shape:", batch_y.shape)
+                print("batch_x_mark raw shape:", batch_x_mark.shape)
+                print("batch_y_mark raw shape:", batch_y_mark.shape)
+                print("label_len:", self.args.label_len)
+                print("pred_len:", self.args.pred_len)
+
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
 
@@ -418,11 +434,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     .float()
                     .to(self.device)
                 )
-                # Add this before the model call in predict function
-                print("batch_x shape:", batch_x.shape)
-                print("batch_x_mark shape:", batch_x_mark.shape)
+                # Add right after dec_inp is created
+                print("After dec_inp creation:")
                 print("dec_inp shape:", dec_inp.shape)
-                print("batch_y_mark shape:", batch_y_mark.shape)
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():

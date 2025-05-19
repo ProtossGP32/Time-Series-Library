@@ -15,22 +15,24 @@ data_dict = {
     'SMAP': SMAPSegLoader,
     'SMD': SMDSegLoader,
     'SWAT': SWATSegLoader,
-    'UEA': UEAloader,
-    'predict': Dataset_Pred
+    'UEA': UEAloader
 }
 
 
 def data_provider(args, flag, setting, encoder=None, scaler=None):
-    if flag=="pred":
-        Data = data_dict['predict']
-    else:  
-        Data = data_dict[args.data]
+    Data = data_dict[args.data]
     timeenc = 0 if args.embed != "timeF" else 1
 
     shuffle_flag = False if (flag == "test" or flag == "TEST" or flag =="pred") else True
     drop_last = False
     batch_size = args.batch_size
     freq = args.freq
+
+    if flag=="pred":
+        shuffle_flag = False
+        drop_last = False
+        batch_size = 1
+        Data = Dataset_Pred
 
     if args.task_name == "anomaly_detection":
         drop_last = False
