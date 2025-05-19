@@ -2,8 +2,9 @@ export CUDA_VISIBLE_DEVICES=0
 
 project_name=DLStreamer
 model_name=Informer
-seq_len=30
-pred_len=30
+seq_len=10
+pred_len=10
+label_len=10
 enc_size=10
 
 # Create necessary directories
@@ -27,7 +28,7 @@ python -u ./libs/TSLib/run.py \
   --inverse True \
   --pred_len $pred_len \
   --seq_len $seq_len \
-  --label_len 30 \
+  --label_len $label_len \
   --e_layers 2 \
   --d_layers 1 \
   --factor 3 \
