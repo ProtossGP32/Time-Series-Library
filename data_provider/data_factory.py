@@ -1,4 +1,4 @@
-from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_M4, PSMSegLoader, \
+from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_M4, PSMSegLoader, Dataset_Pred, \
     MSLSegLoader, SMAPSegLoader, SMDSegLoader, SWATSegLoader, UEAloader
 from data_provider.uea import collate_fn
 from torch.utils.data import DataLoader
@@ -15,15 +15,19 @@ data_dict = {
     'SMAP': SMAPSegLoader,
     'SMD': SMDSegLoader,
     'SWAT': SWATSegLoader,
-    'UEA': UEAloader
+    'UEA': UEAloader,
+    'predict': Dataset_Pred
 }
 
 
 def data_provider(args, flag, setting, encoder=None, scaler=None):
-    Data = data_dict[args.data]
+    if flag=="pred":
+        Data = data_dict['predict']
+    else:  
+        Data = data_dict[args.data]
     timeenc = 0 if args.embed != "timeF" else 1
 
-    shuffle_flag = False if (flag == "test" or flag == "TEST") else True
+    shuffle_flag = False if (flag == "test" or flag == "TEST" or flag =="pred") else True
     drop_last = False
     batch_size = args.batch_size
     freq = args.freq

@@ -4,18 +4,19 @@ project_name=DLStreamer
 model_name=Informer
 seq_len=10
 pred_len=10
-label_len=10
+label_len=5
 enc_size=10
 
 # Create necessary directories
-mkdir -p ./learning-plane/logs
-mkdir -p ./learning-plane/logs/$project_name
-mkdir -p ./learning-plane/logs/$project_name/$model_name
+mkdir -p ./logs
+mkdir -p ./logs/$project_name
+mkdir -p ./logs/$project_name/$model_name
 
-python -u ./libs/TSLib/run.py \
+python -u ./run.py \
   --task_name long_term_forecast \
   --is_training 0 \
-  --root_path ./learning-plane/data/datascience_training \
+  --root_path ./dataset/preprocessed_dataset \
+  --data_iterate True \
   --data_path preprocessed_data.csv \
   --model_id custom \
   --model $model_name \
@@ -23,7 +24,6 @@ python -u ./libs/TSLib/run.py \
   --features MS \
   --target pipelines_status_realtime_pipeline_latency \
   --categorical_cols cluster \
-  --use_gpu False \
   --freq t \
   --inverse True \
   --pred_len $pred_len \
@@ -43,4 +43,4 @@ python -u ./libs/TSLib/run.py \
   --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --loss 'MSE'  | tee ./learning-plane/logs/$project_name/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'
+  --loss 'MSE'  | tee ./logs/$project_name/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'

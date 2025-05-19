@@ -276,6 +276,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     .float()
                     .to(self.device)
                 )
+                # Add this before the model call in predict function
+                print("batch_x shape:", batch_x.shape)
+                print("batch_x_mark shape:", batch_x_mark.shape)
+                print("dec_inp shape:", dec_inp.shape)
+                print("batch_y_mark shape:", batch_y_mark.shape)
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
@@ -376,21 +381,16 @@ class Exp_Long_Term_Forecast(Exp_Basic):
     def predict(
         self,
         setting,
-        load=False,
-        mlflow_load=False,
-        model_encoder_uri=None,
-        model_prediction_uri=None,
-        model_scaler_uri=None,
-        experiment_name=None,
+        load=True
     ):
 
         if load:
             path = os.path.join(self.args.checkpoints, setting)
             best_model_path = path + "/" + "checkpoint.pth"
-            self.model.load_state_dict(torch.load(best_model_path))
+            self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
 
         pred_data, pred_loader = self._get_data(
-            flag="pred", setting=setting, encoder=encoder, scaler=scaler
+            flag="pred", setting=setting
         )
 
         self.model.eval()
@@ -418,6 +418,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     .float()
                     .to(self.device)
                 )
+                # Add this before the model call in predict function
+                print("batch_x shape:", batch_x.shape)
+                print("batch_x_mark shape:", batch_x_mark.shape)
+                print("dec_inp shape:", dec_inp.shape)
+                print("batch_y_mark shape:", batch_y_mark.shape)
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():

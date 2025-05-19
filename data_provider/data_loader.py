@@ -528,10 +528,11 @@ class Dataset_Pred(Dataset):
         freq="h",
         cols=None,
         setting=None,
-        categorical_cols=["node"],
+        categorical_cols=None,
         checkpoints="./checkpoints/",
         encoder=None,
         scaler=None,
+        args=None
     ):
         # size [seq_len, label_len, pred_len]
         # info
@@ -673,19 +674,34 @@ class Dataset_Pred(Dataset):
         else:
             data = df_data.values
 
-        tmp_stamp = df_raw[["date"]][border1:border2]
-        tmp_stamp["date"] = pd.to_datetime(tmp_stamp.date)
-        pred_dates = pd.date_range(
-            tmp_stamp.date.values[-1],
-            periods=self.pred_len + 1,
-            freq=self.freq,
-        )
+        df_stamp = df_raw[["date"]][border1:border2]
+        df_stamp["date"] = pd.to_datetime(df_stamp.date)
 
-        df_stamp = pd.DataFrame(columns=["date"])
-        df_stamp.date = list(tmp_stamp.date.values) + list(pred_dates[1:])
-        data_stamp = time_features(
-            df_stamp, timeenc=self.timeenc, freq=self.freq[-1:]
-        )
+        if self.timeenc == 0:
+            df_stamp["month"] = df_stamp.date.apply(lambda row: row.month, 1)
+            df_stamp["day"] = df_stamp.date.apply(lambda row: row.day, 1)
+            df_stamp["weekday"] = df_stamp.date.apply(
+                lambda row: row.weekday(), 1
+            )
+            df_stamp["hour"] = df_stamp.date.apply(lambda row: row.hour, 1)
+            data_stamp = df_stamp.drop(["date"], 1).values
+        elif self.timeenc == 1:
+            data_stamp = time_features(
+                pd.to_datetime(df_stamp["date"].values), freq=self.freq
+            )
+            data_stamp = data_stamp.transpose(1, 0)
+
+        # pred_dates = pd.date_range(
+        #     tmp_stamp.date.values[-1],
+        #     periods=self.pred_len + 1,
+        #     freq=self.freq,
+        # )
+
+        # df_stamp = pd.DataFrame(columns=["date"])
+        # df_stamp.date = list(tmp_stamp.date.values) + list(pred_dates[1:])
+        # data_stamp = time_features(
+        #     df_stamp, timeenc=self.timeenc, freq=self.freq[-1:]
+        # )
 
         self.data_x = data[border1:border2]
         if self.inverse:
@@ -702,10 +718,11 @@ class Dataset_Pred(Dataset):
         r_end = r_begin + self.label_len + self.pred_len
 
         seq_x = self.data_x[s_begin:s_end]
-        if self.inverse:
-            seq_y = self.data_x[r_begin : r_begin + self.label_len]
-        else:
-            seq_y = self.data_y[r_begin : r_begin + self.label_len]
+        # if self.inverse:
+        #     seq_y = self.data_x[r_begin : r_begin + self.label_len]
+        # else:
+        #     seq_y = self.data_y[r_begin : r_begin + self.label_len]
+        seq_y = self.data_y[r_begin:r_end]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 

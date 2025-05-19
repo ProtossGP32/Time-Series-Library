@@ -53,6 +53,7 @@ if __name__ == "__main__":
         default="./data/ETT/",
         help="root path of the data file",
     )
+    parser.add_argument('--data_iterate', type=bool, default=True, help='Whether to iterate through the root_path directory instead of using data_path directory. Used for inference with multiple files.')
     parser.add_argument(
         "--data_path", type=str, default="ETTh1.csv", help="data file"
     )
@@ -519,13 +520,37 @@ if __name__ == "__main__":
             ii,
         )
 
-        print(
-            ">>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<".format(
-                setting
-            )
-        )
-        exp.predict(setting, test=1)
-        if args.gpu_type == "mps":
-            torch.backends.mps.empty_cache()
-        elif args.gpu_type == "cuda":
-            torch.cuda.empty_cache()
+        all_predictions = {}
+
+        if args.data_iterate:
+            # Get list of all CSV files in root_path
+            csv_files = [f for f in os.listdir(args.root_path) if f.endswith('.csv')]
+
+            for file in csv_files:
+                print(f"\nProcessing file: {file}")
+                # Update data_path for current file
+                args.data_path = file
+                print(args.data)
+                exp = Exp(args)  # set experiments
+                print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+                preds=exp.predict(setting)
+                # Store predictions with filename as key
+                all_predictions[file] = preds
+                torch.cuda.empty_cache()
+
+        # Print all predictions
+        for file, pred in all_predictions.items():
+            print(f"\nPredictions for {file}:")
+            print(file,pred)
+        
+        
+        # print(
+        #     ">>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<".format(
+        #         setting
+        #     )
+        # )
+        # exp.predict(setting, test=1)
+        # if args.gpu_type == "mps":
+        #     torch.backends.mps.empty_cache()
+        # elif args.gpu_type == "cuda":
+        #     torch.cuda.empty_cache()
