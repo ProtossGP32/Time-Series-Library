@@ -2,9 +2,9 @@ export CUDA_VISIBLE_DEVICES=0
 
 project_name=DLStreamer
 model_name=Informer
-seq_len=10
+seq_len=7
 pred_len=10
-label_len=5
+label_len=3
 enc_size=10
 
 # Create necessary directories

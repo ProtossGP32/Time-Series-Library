@@ -409,6 +409,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--inverse", type=bool, help="inverse output data", default=False
     )
+    parser.add_argument(
+    "--output_path",
+    type=str,
+    default="./workflow/results/",
+    help="path to save prediction outputs",
+    )
 
     args = parser.parse_args()
     if args.categorical_cols:
@@ -526,6 +532,10 @@ if __name__ == "__main__":
             # Get list of all CSV files in root_path
             csv_files = [f for f in os.listdir(args.root_path) if f.endswith('.csv')]
 
+            # Create output directory if it doesn't exist
+            if not os.path.exists(args.output_path):
+                os.makedirs(args.output_path)
+
             for file in csv_files:
                 print(f"\nProcessing file: {file}")
                 # Update data_path for current file
@@ -534,6 +544,19 @@ if __name__ == "__main__":
                 exp = Exp(args)  # set experiments
                 print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
                 preds=exp.predict(setting)
+                # Extract cluster name from the input data
+                # First, read the input file to get the cluster name
+                input_file_path = os.path.join(args.root_path, file)
+                import pandas as pd
+                df = pd.read_csv(input_file_path)
+                cluster_name = df['cluster'].iloc[0]  # Get the first cluster value
+
+                # Create output filename and save predictions
+                output_filename = f"{cluster_name}_predictions.npy"
+                output_path = os.path.join(args.output_path, output_filename)
+                np.save(output_path, preds)
+                print(f"Saved predictions to {output_path}")
+
                 # Store predictions with filename as key
                 all_predictions[file] = preds
                 torch.cuda.empty_cache()
@@ -542,15 +565,3 @@ if __name__ == "__main__":
         for file, pred in all_predictions.items():
             print(f"\nPredictions for {file}:")
             print(file,pred)
-        
-        
-        # print(
-        #     ">>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<".format(
-        #         setting
-        #     )
-        # )
-        # exp.predict(setting, test=1)
-        # if args.gpu_type == "mps":
-        #     torch.backends.mps.empty_cache()
-        # elif args.gpu_type == "cuda":
-        #     torch.cuda.empty_cache()
