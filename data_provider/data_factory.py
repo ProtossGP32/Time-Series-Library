@@ -83,6 +83,7 @@ def data_provider(args, flag, setting, encoder=None, scaler=None):
             freq=freq,
             inverse=args.inverse,
             categorical_cols=args.categorical_cols,
+            checkpoints=args.checkpoints,
             setting=setting,
             encoder=encoder,
             scaler=scaler,
