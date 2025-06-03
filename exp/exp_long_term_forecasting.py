@@ -49,7 +49,31 @@ class SLAFocusedLoss(nn.Module):
         weights[severe_underpredict] *= 2.0
         
         return torch.mean(weights * base_error)
+    
+    def _get_scaled_thresholds(self, train_data):
+        """Calculate what 100ms and 200ms become after scaling"""
+        # Get the scaler used for the target variable
+        if hasattr(train_data, 'scaler'):
+            scaler = train_data.scaler
 
+            # If you're only scaling the target (univariate)
+            if hasattr(scaler, 'transform'):
+                # Create dummy arrays with your thresholds
+                original_thresholds = np.array([[100], [200]])
+                scaled_thresholds = scaler.transform(original_thresholds)
+                scaled_low = scaled_thresholds[0, 0]
+                scaled_high = scaled_thresholds[1, 0]
+            else:
+                # Fallback: calculate manually if StandardScaler
+                # You need to know which column is your target
+                target_col_idx = -1  # Assuming target is last column
+                scaled_low = (100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+                scaled_high = (200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+
+            return scaled_low, scaled_high
+        else:
+            # If no scaling, use original values
+            return 100.0, 200.0
 
 class Exp_Long_Term_Forecast(Exp_Basic):
     def __init__(self, args):
@@ -74,15 +98,22 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         )
         return model_optim
 
-    def _select_criterion(self):
-        # criterion = nn.MSELoss()
+    def _select_criterion(self, train_data):
+        scaler = train_data.scaler
+        target_col_idx = -1 
+
+        scaled_low = (100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+        scaled_high = (200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+
+        print(f"Scaled thresholds: {scaled_low:.3f} (100ms), {scaled_high:.3f} (200ms)")
+
         criterion = SLAFocusedLoss(
-        sla_threshold=200.0,
-        good_threshold=100.0, 
-        high_penalty=15.0,     # Start with 15x penalty, tune as needed
-        low_penalty=8.0,
-        normal_penalty=1.0
-    )
+            sla_threshold=scaled_high,
+            good_threshold=scaled_low,
+            high_penalty=15.0,
+            low_penalty=8.0,
+            normal_penalty=1.0
+        )
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
@@ -154,7 +185,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         )
 
         model_optim = self._select_optimizer()
-        criterion = self._select_criterion()
+        criterion = self._select_criterion(train_data)
 
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
@@ -295,14 +326,6 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(
                 test_loader
             ):
-                # Add right after the dataloader provides the batch
-                print("Original shapes from dataloader:")
-                print("batch_x raw shape:", batch_x.shape)
-                print("batch_y raw shape:", batch_y.shape)
-                print("batch_x_mark raw shape:", batch_x_mark.shape)
-                print("batch_y_mark raw shape:", batch_y_mark.shape)
-                print("label_len:", self.args.label_len)
-                print("pred_len:", self.args.pred_len)
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
@@ -321,9 +344,6 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     .float()
                     .to(self.device)
                 )
-                # Add right after dec_inp is created
-                print("After dec_inp creation:")
-                print("dec_inp shape:", dec_inp.shape)
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
