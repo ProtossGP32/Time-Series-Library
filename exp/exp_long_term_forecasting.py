@@ -21,6 +21,35 @@ from utils.tools import visual
 
 warnings.filterwarnings("ignore")
 
+class SLAFocusedLoss(nn.Module):
+    def __init__(self, 
+                 sla_threshold=200.0,     # High latency SLA violation
+                 good_threshold=100.0,    # Good performance threshold  
+                 high_penalty=15.0,       # Penalty for >200ms errors
+                 low_penalty=8.0,         # Penalty for <100ms errors
+                 normal_penalty=1.0):     # Normal penalty for 100-200ms
+        super().__init__()
+        self.sla_threshold = sla_threshold
+        self.good_threshold = good_threshold
+        self.high_penalty = high_penalty
+        self.low_penalty = low_penalty
+        self.normal_penalty = normal_penalty
+        
+    def forward(self, predictions, targets):
+        # Base MSE loss
+        base_error = (predictions - targets) ** 2
+        
+        # Create penalty weights based on target values
+        weights = torch.ones_like(targets) * self.normal_penalty
+        weights[targets > self.sla_threshold] = self.high_penalty
+        weights[targets < self.good_threshold] = self.low_penalty
+        
+        # Extra penalty for severe mispredictions in critical ranges
+        severe_underpredict = (targets > self.sla_threshold) & (predictions < self.sla_threshold - 50)
+        weights[severe_underpredict] *= 2.0
+        
+        return torch.mean(weights * base_error)
+
 
 class Exp_Long_Term_Forecast(Exp_Basic):
     def __init__(self, args):
@@ -46,7 +75,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss()
+        # criterion = nn.MSELoss()
+        criterion = SLAFocusedLoss(
+        sla_threshold=200.0,
+        good_threshold=100.0, 
+        high_penalty=15.0,     # Start with 15x penalty, tune as needed
+        low_penalty=8.0,
+        normal_penalty=1.0
+    )
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
