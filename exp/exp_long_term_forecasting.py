@@ -73,21 +73,22 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return model_optim
 
     def _select_criterion(self, train_data):
-        scaler = train_data.scaler
-        target_col_idx = -1 
+        criterion = nn.MSELoss()
+        # scaler = train_data.scaler
+        # target_col_idx = -1 
 
-        scaled_low = (100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
-        scaled_high = (200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+        # scaled_low = (100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+        # scaled_high = (200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
 
-        print(f"Scaled thresholds: {scaled_low:.3f} (100ms), {scaled_high:.3f} (200ms)")
+        # print(f"Scaled thresholds: {scaled_low:.3f} (100ms), {scaled_high:.3f} (200ms)")
 
-        criterion = SLAFocusedLoss(
-            sla_threshold=scaled_high,
-            good_threshold=scaled_low,
-            high_penalty=50.0,
-            low_penalty=8.0,
-            normal_penalty=1.0
-        )
+        # criterion = SLAFocusedLoss(
+        #     sla_threshold=scaled_high,
+        #     good_threshold=scaled_low,
+        #     high_penalty=50.0,
+        #     low_penalty=8.0,
+        #     normal_penalty=1.0
+        # )
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
