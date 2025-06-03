@@ -23,8 +23,8 @@ warnings.filterwarnings("ignore")
 
 class SLAFocusedLoss(nn.Module):
     def __init__(self, 
-                 sla_threshold=200.0,     # High latency SLA violation
-                 good_threshold=100.0,    # Good performance threshold  
+                 sla_threshold=0.200,     # High latency SLA violation
+                 good_threshold=0.100,    # Good performance threshold  
                  high_penalty=15.0,       # Penalty for >200ms errors
                  low_penalty=8.0,         # Penalty for <100ms errors
                  normal_penalty=1.0):     # Normal penalty for 100-200ms
