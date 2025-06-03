@@ -4,7 +4,7 @@ project_name=DLStreamer
 model_name=Informer
 seq_len=10
 pred_len=10
-label_len=10
+label_len=5
 enc_size=10
 
 # Create necessary directories
