@@ -49,32 +49,6 @@ class SLAFocusedLoss(nn.Module):
         weights[severe_underpredict] *= 2.0
         
         return torch.mean(weights * base_error)
-    
-    def _get_scaled_thresholds(self, train_data):
-        """Calculate what 100ms and 200ms become after scaling"""
-        # Get the scaler used for the target variable
-        if hasattr(train_data, 'scaler'):
-            scaler = train_data.scaler
-
-            # If you're only scaling the target (univariate)
-            if hasattr(scaler, 'transform'):
-                # Create dummy arrays with your thresholds
-                original_thresholds = np.array([[100], [200]])
-                scaled_thresholds = scaler.transform(original_thresholds)
-                scaled_low = scaled_thresholds[0, 0]
-                scaled_high = scaled_thresholds[1, 0]
-            else:
-                # Fallback: calculate manually if StandardScaler
-                # You need to know which column is your target
-                target_col_idx = -1  # Assuming target is last column
-                scaled_low = (100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
-                scaled_high = (200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
-
-            return scaled_low, scaled_high
-        else:
-            # If no scaling, use original values
-            return 100.0, 200.0
-
 class Exp_Long_Term_Forecast(Exp_Basic):
     def __init__(self, args):
         super(Exp_Long_Term_Forecast, self).__init__(args)
