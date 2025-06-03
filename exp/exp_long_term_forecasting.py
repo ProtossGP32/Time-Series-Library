@@ -247,7 +247,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     os.path.join("./checkpoints/" + setting, "checkpoint.pth")
                 )
             )
-
+        input_list = []
         preds = []
         trues = []
         folder_path = "./test_results/" + setting + "/"
@@ -323,6 +323,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 pred = outputs
                 true = batch_y
+                input_list.append(batch_x.detach().cpu().numpy())
 
                 preds.append(pred)
                 trues.append(true)
@@ -343,10 +344,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         preds = np.concatenate(preds, axis=0)
         trues = np.concatenate(trues, axis=0)
-        print("test shape:", preds.shape, trues.shape)
+        input_list = np.concatenate(input_list, axis=0)
+        print("test shape:", preds.shape, trues.shape, input_list.shape)
         preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
         trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print("test shape:", preds.shape, trues.shape)
+        input_list = input_list.reshape(-1, input_list.shape[-2], input_list.shape[-1])
+        print("test shape:", preds.shape, trues.shape, input_list.shape)
 
         # result save
         folder_path = "./results/" + setting + "/"
@@ -382,6 +385,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         )
         np.save(folder_path + "pred.npy", preds)
         np.save(folder_path + "true.npy", trues)
+        np.save(folder_path + "input.npy", input_list)
 
         return
 
