@@ -85,8 +85,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         criterion = SLAFocusedLoss(
             sla_threshold=scaled_high,
             good_threshold=scaled_low,
-            high_penalty=50.0,
-            low_penalty=8.0,
+            high_penalty=15.0,
+            low_penalty=3.0,
             normal_penalty=1.0
         )
         return criterion
