@@ -13,10 +13,10 @@ mkdir -p ./logs/$project_name
 mkdir -p ./logs/$project_name/$model_name
 
 python -u ./run.py \
-  --output_path /Users/joanoliverastorra/Documents/BSC/Time-Series-Library/dataset/implementation_data/5_min_results \
+  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset/5_min_results \
   --task_name long_term_forecast \
   --is_training 0 \
-  --root_path /Users/joanoliverastorra/Documents/BSC/Time-Series-Library/dataset/implementation_data/5_min_datasets \
+  --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset/5_min_datasets \
   --data_iterate True \
   --data_path preprocessed_data.csv \
   --model_id custom \
