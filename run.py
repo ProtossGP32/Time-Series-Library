@@ -590,7 +590,7 @@ if __name__ == "__main__":
             print(f"\nSaved all predictions to {output_path}")
             print(f"Total predictions: {len(predictions_df)} rows from {len(csv_files)} clusters")
     
-    # Print all predictions
-    for file, pred in all_predictions.items():
-        print(f"\nPredictions for {file}:")
-        print(file, pred)
+        # Print all predictions
+        for file, pred in all_predictions.items():
+            print(f"\nPredictions for {file}:")
+            print(file, pred)

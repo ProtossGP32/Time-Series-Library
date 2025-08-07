@@ -1,29 +1,32 @@
 export CUDA_VISIBLE_DEVICES=0
 
+project_name=DLStreamer
 model_name=TimesNet
 seq_len=10
-pred_len=3
+pred_len=10
 enc_size=10
+label_len=3
 
-if [ ! -d "./logs/$model_name" ]; then
-    mkdir ./logs/$model_name
-fi
+# Create necessary directories
+mkdir -p logs
+mkdir -p logs/$project_name
+mkdir -p logs/$project_name/$model_name
 
 
-python -u ./Time-Series-Library/run.py \
+python -u run.py \
   --task_name long_term_forecast \
   --is_training 1 \
-  --root_path ./load-data \
-  --data_path final_df.csv \
+  --root_path ./dataset/training_dataset/new_queues_concurrency_4_after_migration \
+  --data_path preprocessed_data.csv \
   --model_id custom \
   --model $model_name \
   --data custom \
   --features MS \
-  --target PredictionTimeTS \
+  --target pipelines_status_realtime_pipeline_latency \
   --inverse True \
   --pred_len $pred_len \
   --seq_len $seq_len \
-  --label_len 3 \
+  --label_len $label_len \
   --e_layers 2 \
   --d_layers 1 \
   --factor 3 \
@@ -39,4 +42,4 @@ python -u ./Time-Series-Library/run.py \
   --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --loss 'MSE'  | tee logs/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'
+  --loss 'MSE'  | tee logs/$project_name/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'
