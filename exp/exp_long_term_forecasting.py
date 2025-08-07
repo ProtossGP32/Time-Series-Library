@@ -447,16 +447,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
 
-                # decoder input
-                # Create zeros tensor of the right size (not based on slicing batch_y)
-                future_zeros = torch.zeros((batch_y.shape[0], self.args.pred_len, batch_y.shape[-1]), device=batch_y.device)
-                # Concatenate with available label timesteps
-                dec_inp = torch.cat([batch_y, future_zeros], dim=1)
-                # IMPORTANT: Pad batch_y_mark to match dec_inp's sequence length
-                if batch_y_mark.shape[1] != dec_inp.shape[1]:
-                    padding_needed = dec_inp.shape[1] - batch_y_mark.shape[1]
-                    last_mark = batch_y_mark[:, -1:, :].repeat(1, padding_needed, 1)
-                    batch_y_mark = torch.cat([batch_y_mark, last_mark], dim=1)
+                # decoder input - match training/validation logic exactly
+                dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len :, :]).float()
+                dec_inp = torch.cat([batch_y[:, : self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
 
                 # encoder - decoder
                 if self.args.use_amp:
