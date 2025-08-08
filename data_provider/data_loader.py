@@ -732,22 +732,19 @@ class Dataset_Pred(Dataset):
         return len(self.data_x) - self.seq_len + 1
 
     def inverse_transform(self, data):
-        if self.categorical_cols:
-            # Get number of continuous features (that were scaled)
-            n_continuous_features = len(self.scaler.scale_)
-
-            # Create a copy of the data
-            transformed_data = data.copy()
-
-            # Only inverse transform the continuous features (last n_continuous_features columns)
-            transformed_data[:, -n_continuous_features:] = (
-                self.scaler.inverse_transform(data[:, -n_continuous_features:])
-            )
-
-            return transformed_data
-        else:
-            return self.scaler.inverse_transform(data)
-
+        """
+        Inverse transform for production predictions (single feature output)
+        Only uses the last feature's scaling parameters since we only predict the target
+        """
+        if not self.scale:
+            return data
+        
+        # Get scaling parameters for the last feature (target)
+        target_scale = self.scaler.scale_[-1]
+        target_mean = self.scaler.mean_[-1]
+        
+        # Inverse transform: x_original = x_scaled * scale + mean
+        return data * target_scale + target_mean
 
 class Dataset_M4(Dataset):
     def __init__(

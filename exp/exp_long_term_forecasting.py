@@ -435,63 +435,54 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             path = os.path.join(self.args.checkpoints, setting)
             best_model_path = path + "/" + "checkpoint.pth"
             self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
-
+        
         pred_data, pred_loader = self._get_data(flag="pred", setting=setting)
         self.model.eval()
         preds = []
-
+        
         with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(pred_loader):
-                batch_x = batch_x.float().to(self.device)
-                batch_y = batch_y.float().to(self.device)
-                batch_x_mark = batch_x_mark.float().to(self.device)
-                batch_y_mark = batch_y_mark.float().to(self.device)
-
-                # decoder input - match training/validation logic exactly
-                dec_inp = torch.zeros_like(batch_y[:, -self.args.pred_len :, :]).float()
-                dec_inp = torch.cat([batch_y[:, : self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
-
-                # encoder - decoder
-                if self.args.use_amp:
-                    with torch.cuda.amp.autocast():
-                        outputs = self.model(
-                            batch_x, batch_x_mark, dec_inp, batch_y_mark
-                        )
+            for i, data in enumerate(pred_loader):
+                if len(data) == 4:
+                    batch_x, _, batch_x_mark, _ = data
                 else:
-                    outputs = self.model(
-                        batch_x, batch_x_mark, dec_inp, batch_y_mark
-                    )
-
-                f_dim = -1 if self.args.features == "MS" else 0
-                outputs = outputs[:, -self.args.pred_len :, :]
-                batch_y = batch_y[:, -self.args.pred_len :, :].to(self.device)
+                    batch_x, batch_x_mark = data
+                
+                batch_x = batch_x.float().to(self.device)
+                if batch_x_mark is not None:
+                    batch_x_mark = batch_x_mark.float().to(self.device)
+                
+                # Construct decoder input
+                dec_context = batch_x[:, -self.args.label_len:, :]
+                dec_future = torch.zeros(
+                    batch_x.shape[0], 
+                    self.args.pred_len, 
+                    batch_x.shape[2]
+                ).float().to(self.device)
+                dec_inp = torch.cat([dec_context, dec_future], dim=1)
+                
+                # Construct decoder time marks
+                dec_mark = None
+                if batch_x_mark is not None:
+                    dec_mark_context = batch_x_mark[:, -self.args.label_len:, :]
+                    dec_mark_future = torch.zeros(
+                        batch_x.shape[0],
+                        self.args.pred_len,
+                        batch_x_mark.shape[2]
+                    ).float().to(self.device)
+                    dec_mark = torch.cat([dec_mark_context, dec_mark_future], dim=1)
+                
+                # Run model
+                outputs = self.model(batch_x, batch_x_mark, dec_inp, dec_mark)
+                
+                # Extract predictions
+                outputs = outputs[:, -self.args.pred_len:, :]
                 outputs = outputs.detach().cpu().numpy()
-                batch_y = batch_y.detach().cpu().numpy()
+                
+                # Apply inverse transform
                 if pred_data.scale and self.args.inverse:
-                    actual_shape = (outputs.shape[0], outputs.shape[1], batch_y.shape[-1])
-                    if outputs.shape[-1] != batch_y.shape[-1]:
-                        outputs = np.tile(
-                            outputs,
-                            [1, 1, int(batch_y.shape[-1] / outputs.shape[-1])],
-                        )
-                    outputs = pred_data.inverse_transform(
-                        outputs.reshape(actual_shape[0] * actual_shape[1], -1)
-                    ).reshape(actual_shape)
-
-                outputs = outputs[:, :, f_dim:]
-                batch_y = batch_y[:, :, f_dim:]
-
-                pred = outputs
-                preds.append(pred)
-            preds = np.concatenate(preds, axis=0)
-            preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-
-            # # result save
-            # folder_path = './workflow/results/'
-            # if not os.path.exists(folder_path):
-            #     os.makedirs(folder_path)
-
-            # np.save(folder_path+'real_prediction.npy', preds)
-
+                    outputs = pred_data.inverse_transform(outputs)
+                
+                preds.append(outputs)
+        
+        preds = np.concatenate(preds, axis=0)
         return preds
-    
