@@ -25,8 +25,8 @@ class SLAFocusedLoss(nn.Module):
     def __init__(self, 
                  sla_threshold=0.200,     # High latency SLA violation
                  good_threshold=0.100,    # Good performance threshold  
-                 high_penalty=15.0,       # Penalty for >200ms errors
-                 low_penalty=8.0,         # Penalty for <100ms errors
+                 high_penalty=15.0,       # Penalty for >200ms values
+                 low_penalty=5.0,         # Penalty for <100ms values
                  normal_penalty=1.0):     # Normal penalty for 100-200ms
         super().__init__()
         self.sla_threshold = sla_threshold
@@ -43,10 +43,6 @@ class SLAFocusedLoss(nn.Module):
         weights = torch.ones_like(targets) * self.normal_penalty
         weights[targets > self.sla_threshold] = self.high_penalty
         weights[targets < self.good_threshold] = self.low_penalty
-        
-        # Extra penalty for severe mispredictions in critical ranges
-        severe_underpredict = (targets > self.sla_threshold) & (predictions < self.sla_threshold - 50)
-        weights[severe_underpredict] *= 2.0
         
         return torch.mean(weights * base_error)
 class Exp_Long_Term_Forecast(Exp_Basic):
