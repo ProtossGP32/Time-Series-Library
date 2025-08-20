@@ -4,7 +4,7 @@ project_name=DLStreamer
 model_name=Informer
 seq_len=10
 pred_len=10
-label_len=5
+label_len=10
 enc_size=10
 
 # Create necessary directories
@@ -13,10 +13,11 @@ mkdir -p ./logs/$project_name
 mkdir -p ./logs/$project_name/$model_name
 
 python -u ./run.py \
-  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset/5_min_results \
+  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive/5_min_results \
   --task_name long_term_forecast \
   --is_training 0 \
-  --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset/5_min_datasets \
+  --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive/5_min_intervals \
+  --checkpoints ./checkpoints/filtered_data_checkpoint/ \
   --data_iterate True \
   --data_path preprocessed_data.csv \
   --model_id custom \
