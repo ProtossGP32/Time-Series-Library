@@ -528,69 +528,69 @@ if __name__ == "__main__":
 
         all_predictions = {}
 
-    if args.data_iterate:
-        # Get list of all CSV files in root_path
-        csv_files = [f for f in os.listdir(args.root_path) if f.endswith('.csv')]
+        if args.data_iterate:
+            # Get list of all CSV files in root_path
+            csv_files = [f for f in os.listdir(args.root_path) if f.endswith('.csv')]
+            
+            # Create output directory if it doesn't exist
+            if not os.path.exists(args.output_path):
+                os.makedirs(args.output_path)
         
-        # Create output directory if it doesn't exist
-        if not os.path.exists(args.output_path):
-            os.makedirs(args.output_path)
-    
-        # Initialize list to collect all predictions
-        all_predictions_data = []
-    
-        for file in csv_files:
-            print(f"\nProcessing file: {file}")
-            # Update data_path for current file
-            args.data_path = file
-            print(args.data)
-            exp = Exp(args)  # set experiments
-            print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-            preds = exp.predict(setting)
-            
-            # Extract cluster name and timestamps from the input data
-            input_file_path = os.path.join(args.root_path, file)
-            import pandas as pd
-            df = pd.read_csv(input_file_path)
-            cluster_name = df['cluster'].iloc[0]  # Get the first cluster value
-            
-            # Get the last timestamp and generate future timestamps
-            last_timestamp = pd.to_datetime(df['date'].iloc[-1])
-            # Generate future timestamps based on frequency (30 seconds intervals)
-            future_timestamps = pd.date_range(
-                start=last_timestamp + pd.Timedelta(seconds=30),
-                periods=args.pred_len,
-                freq='30S'
-            )
-            
-            # Prepare predictions for CSV format
-            # preds shape is (1, 10, 1), so we need to flatten it
-            predictions_flat = preds.reshape(-1)  # Flatten to 1D array
-            
-            # Add predictions to the collection with cluster info and timestamps
-            for i, pred_value in enumerate(predictions_flat):
-                all_predictions_data.append({
-                    'date': future_timestamps[i].strftime('%Y-%m-%dT%H:%M:%S'),
-                    'cluster': cluster_name,
-                    args.target: pred_value
-                })
-            
-            # Store predictions with filename as key (for console output)
-            all_predictions[file] = preds
-            torch.cuda.empty_cache()
-    
-        # Create single DataFrame with all predictions
-        if all_predictions_data:
-            predictions_df = pd.DataFrame(all_predictions_data)
-            
-            # Save all predictions to a single CSV file
-            output_filename = "all_predictions.csv"
-            output_path = os.path.join(args.output_path, output_filename)
-            predictions_df.to_csv(output_path, index=False)
-            print(f"\nSaved all predictions to {output_path}")
-            print(f"Total predictions: {len(predictions_df)} rows from {len(csv_files)} clusters")
-    
-        # Print all predictions
-        for file, pred in all_predictions.items():
-            print(f"\nPredictions for {file}:")
-            print(file, pred)
+            # Initialize list to collect all predictions
+            all_predictions_data = []
+        
+            for file in csv_files:
+                print(f"\nProcessing file: {file}")
+                # Update data_path for current file
+                args.data_path = file
+                print(args.data)
+                exp = Exp(args)  # set experiments
+                print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+                preds = exp.predict(setting)
+                
+                # Extract cluster name and timestamps from the input data
+                input_file_path = os.path.join(args.root_path, file)
+                import pandas as pd
+                df = pd.read_csv(input_file_path)
+                cluster_name = df['cluster'].iloc[0]  # Get the first cluster value
+                
+                # Get the last timestamp and generate future timestamps
+                last_timestamp = pd.to_datetime(df['date'].iloc[-1])
+                # Generate future timestamps based on frequency (30 seconds intervals)
+                future_timestamps = pd.date_range(
+                    start=last_timestamp + pd.Timedelta(seconds=30),
+                    periods=args.pred_len,
+                    freq='30S'
+                )
+                
+                # Prepare predictions for CSV format
+                # preds shape is (1, 10, 1), so we need to flatten it
+                predictions_flat = preds.reshape(-1)  # Flatten to 1D array
+                
+                # Add predictions to the collection with cluster info and timestamps
+                for i, pred_value in enumerate(predictions_flat):
+                    all_predictions_data.append({
+                        'date': future_timestamps[i].strftime('%Y-%m-%dT%H:%M:%S'),
+                        'cluster': cluster_name,
+                        args.target: pred_value
+                    })
+                
+                # Store predictions with filename as key (for console output)
+                all_predictions[file] = preds
+                torch.cuda.empty_cache()
+        
+            # Create single DataFrame with all predictions
+            if all_predictions_data:
+                predictions_df = pd.DataFrame(all_predictions_data)
+                
+                # Save all predictions to a single CSV file
+                output_filename = "all_predictions.csv"
+                output_path = os.path.join(args.output_path, output_filename)
+                predictions_df.to_csv(output_path, index=False)
+                print(f"\nSaved all predictions to {output_path}")
+                print(f"Total predictions: {len(predictions_df)} rows from {len(csv_files)} clusters")
+        
+            # Print all predictions
+            for file, pred in all_predictions.items():
+                print(f"\nPredictions for {file}:")
+                print(file, pred)
