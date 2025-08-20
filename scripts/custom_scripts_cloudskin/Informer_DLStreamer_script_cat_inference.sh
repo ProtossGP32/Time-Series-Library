@@ -13,11 +13,11 @@ mkdir -p ./logs/$project_name
 mkdir -p ./logs/$project_name/$model_name
 
 python -u ./run.py \
-  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive/5_min_results \
+  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive/filtered_loss_SLA_labellen_10_model/5_min_results \
   --task_name long_term_forecast \
   --is_training 0 \
   --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive/5_min_intervals \
-  --checkpoints ./checkpoints/filtered_data_checkpoint/ \
+  --checkpoints ./checkpoints/filtered_loss_SLA/ \
   --data_iterate True \
   --data_path preprocessed_data.csv \
   --model_id custom \
@@ -45,4 +45,4 @@ python -u ./run.py \
   --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --loss 'MSE'  | tee ./logs/$project_name/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'
+  --loss 'SLA'  | tee ./logs/$project_name/$model_name/$model_name'_'$seq_len'_pl'$pred_len'_enc'$enc_size'.log'
