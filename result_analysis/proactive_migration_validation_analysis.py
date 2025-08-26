@@ -590,9 +590,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python model_improvement_analysis.py results.csv metrics.csv output.png
-    python model_improvement_analysis.py /path/to/results_folder/ /path/to/metrics.csv /path/to/output.png
-    python model_improvement_analysis.py /path/to/results.csv /path/to/metrics.csv /path/to/output.png
+    python proactive_migration_validation_analysis.py results.csv metrics.csv output.png
+    python proactive_migration_validation_analysis.py /path/to/results_folder/ /path/to/metrics.csv /path/to/output.png
+    python proactive_migration_validation_analysis.py /path/to/results.csv /path/to/metrics.csv /path/to/output.png
         """
     )
     
