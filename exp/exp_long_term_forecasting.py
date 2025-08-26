@@ -80,15 +80,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             scaler = train_data.scaler
             target_col_idx = -1 
 
-            scaled_low = (0.100 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
-            scaled_high = (0.200 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+            scaled_low = (0.60 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
+            scaled_high = (0.180 - scaler.mean_[target_col_idx]) / scaler.scale_[target_col_idx]
 
-            print(f"Scaled thresholds: {scaled_low:.3f} (100ms), {scaled_high:.3f} (200ms)")
+            print(f"Scaled thresholds: {scaled_low:.3f} (60ms), {scaled_high:.3f} (180ms)")
 
             criterion = SLAFocusedLoss(
                 sla_threshold=scaled_high,
                 good_threshold=scaled_low,
-                high_penalty=5.0,
+                high_penalty=15.0,
                 low_penalty=3.0,
                 normal_penalty=1.0
             )
