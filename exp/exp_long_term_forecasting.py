@@ -50,7 +50,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         super(Exp_Long_Term_Forecast, self).__init__(args)
 
     def _build_model(self):
-        model = self.model_dict[self.args.model].Model(self.args).float()
+        model = self.model_dict[self.args.model](self.args).float()
 
         if self.args.use_multi_gpu and self.args.use_gpu:
             model = nn.DataParallel(model, device_ids=self.args.device_ids)
@@ -338,6 +338,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 f_dim = -1 if self.args.features == "MS" else 0
                 outputs = outputs[:, -self.args.pred_len :, :]
+                # Add this fix:
+                if self.args.model == "TimesNet" and self.args.features == "MS":
+                    if outputs.shape[-1] > 1:  # Model outputs all features
+                        # Extract only the target feature (last column by default)
+                        target_idx = -1  
+                        outputs = outputs[:, :, -1:]
+                        if i == 0:  # Log once
+                            print(f"[TimesNet MS Fix] Extracting feature at index {target_idx}")
                 batch_y = batch_y[:, -self.args.pred_len :, :].to(self.device)
                 outputs = outputs.detach().cpu().numpy()
                 batch_y = batch_y.detach().cpu().numpy()
@@ -472,6 +480,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 
                 # Extract predictions
                 outputs = outputs[:, -self.args.pred_len:, :]
+                # Add this fix:
+                if self.args.model == "TimesNet" and self.args.features == "MS":
+                    if outputs.shape[-1] > 1:  # Model outputs all features
+                        # Extract only the target feature (last column by default)
+                        target_idx = -1  
+                        outputs = outputs[:, :, -1:]
+                        if i == 0:  # Log once
+                            print(f"[TimesNet MS Fix] Extracting feature at index {target_idx}")
                 outputs = outputs.detach().cpu().numpy()
                 
                 # Apply inverse transform
