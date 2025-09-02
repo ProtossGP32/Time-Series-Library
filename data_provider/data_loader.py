@@ -1369,3 +1369,71 @@ class UEAloader(Dataset):
 
     def __len__(self):
         return len(self.all_IDs)
+
+
+class Dataset_LR_Pred(Dataset):
+    """
+    Prediction-only dataset for production Linear Regression.
+    Aggregates the last `seq_len` rows into a single feature vector by:
+      - Averaging numeric features
+      - Taking the last value for categorical features
+    Builds the exact LR features used by fixed coefficients and returns a
+    single sample tensor of shape (feature_dim,).
+    """
+    FEATURE_ORDER = [
+        "node_mem_usage",
+        "number_pipelines",
+        "cluster_x_pipelines",
+        "cluster_x_node_mem",
+        "node_cpu_x_server_cpu",
+    ]
+
+    CLUSTER_REF_VALUE = "fd7816db-7948-4602-af7a-1d51900792a7"
+
+    def __init__(self, args, root_path, data_path):
+        self.args = args
+        self.root_path = root_path
+        self.data_path = data_path
+        self.seq_len = getattr(args, "seq_len", 10)
+        self._read_and_aggregate()
+
+    def _read_and_aggregate(self):
+        csv_path = os.path.join(self.root_path, self.data_path)
+        df = pd.read_csv(csv_path)
+        required = [
+            "date",
+            "cluster",
+            "number_pipelines",
+            "node_mem_usage",
+            "node_cpu_usage",
+            "pipelines_server_cpu_usage",
+        ]
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns in {csv_path}: {missing}")
+
+        window = df.tail(self.seq_len).copy()
+
+        avg_node_mem = float(window["node_mem_usage"].mean())
+        avg_num_pipelines = float(window["number_pipelines"].mean())
+        avg_node_cpu = float(window["node_cpu_usage"].mean())
+        avg_server_cpu = float(window["pipelines_server_cpu_usage"].mean())
+        last_cluster = str(window["cluster"].iloc[-1])
+        cluster_flag = 1.0 if last_cluster == self.CLUSTER_REF_VALUE else 0.0
+
+        feats = {
+            "node_mem_usage": avg_node_mem,
+            "number_pipelines": avg_num_pipelines,
+            "cluster_x_pipelines": cluster_flag * avg_num_pipelines,
+            "cluster_x_node_mem": cluster_flag * avg_node_mem,
+            "node_cpu_x_server_cpu": avg_node_cpu * avg_server_cpu,
+        }
+
+        # Store vector in fixed order
+        self.vector = np.array([feats[name] for name in self.FEATURE_ORDER], dtype=np.float32)
+
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, index):
+        return torch.from_numpy(self.vector)

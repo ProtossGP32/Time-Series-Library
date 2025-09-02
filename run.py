@@ -11,6 +11,7 @@ from exp.exp_classification import Exp_Classification
 from exp.exp_imputation import Exp_Imputation
 from exp.exp_long_term_forecasting import Exp_Long_Term_Forecast
 from exp.exp_short_term_forecasting import Exp_Short_Term_Forecast
+from exp.exp_linear_regression import Exp_Linear_Regression
 from utils.print_args import print_args
 
 if __name__ == "__main__":
@@ -27,7 +28,7 @@ if __name__ == "__main__":
         type=str,
         required=True,
         default="long_term_forecast",
-        help="task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]",
+        help="task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection, linear_regression]",
     )
     parser.add_argument(
         "--is_training", type=int, required=True, default=1, help="status"
@@ -453,6 +454,8 @@ if __name__ == "__main__":
         Exp = Exp_Anomaly_Detection
     elif args.task_name == "classification":
         Exp = Exp_Classification
+    elif args.task_name == "linear_regression":
+        Exp = Exp_Linear_Regression
     else:
         Exp = Exp_Long_Term_Forecast
 
@@ -564,8 +567,11 @@ if __name__ == "__main__":
                 )
                 
                 # Prepare predictions for CSV format
+                print(preds.shape)
+                print(preds)
                 # preds shape is (1, 10, 1), so we need to flatten it
                 predictions_flat = preds.reshape(-1)  # Flatten to 1D array
+                print(predictions_flat.shape)
                 
                 # Add predictions to the collection with cluster info and timestamps
                 for i, pred_value in enumerate(predictions_flat):
