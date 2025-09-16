@@ -118,6 +118,8 @@ def _summarize_single_experiment(df_exp: pd.DataFrame, sla: float) -> Dict[str, 
       - peak_latency: maximum per-step latency across entire run
       - num_times_crossed_above_sla: rising-edge crossings of SLA threshold
       - total_seconds_above_sla: sum of dt where latency >= SLA
+      - total_seconds_in_cloud_cluster: sum of dt spent in non-edge cluster
+      - percent_time_below_sla: percentage of total dt where latency < SLA
     """
     if df_exp.empty:
         return {
@@ -126,6 +128,8 @@ def _summarize_single_experiment(df_exp: pd.DataFrame, sla: float) -> Dict[str, 
             'peak_latency': float('nan'),
             'num_times_crossed_above_sla': 0,
             'total_seconds_above_sla': 0.0,
+            'total_seconds_in_cloud_cluster': 0.0,
+            'percent_time_below_sla': float('nan'),
         }
 
     latency = df_exp['pipelines_status_realtime_pipeline_latency'].astype(float)
@@ -139,7 +143,25 @@ def _summarize_single_experiment(df_exp: pd.DataFrame, sla: float) -> Dict[str, 
     t = df_exp['time_since_start_seconds'].astype(float)
     dt_next = t.shift(-1) - t
     dt_next = dt_next.fillna(0.0)
-    total_seconds_above_sla = float((above.astype(float) * dt_next).sum())
+    total_duration_seconds = float(dt_next.sum())
+    # Only count duration above SLA for the edge cluster rows
+    EDGE_CLUSTER_ID = 'eb0e3eaa-b668-4ad6-bc10-2bb0eb7da259'
+    if 'cluster' in df_exp.columns:
+        in_edge_cluster = (df_exp['cluster'] == EDGE_CLUSTER_ID)
+    else:
+        # Fallback to previous behavior if no cluster info is present
+        in_edge_cluster = pd.Series([True] * len(df_exp), index=df_exp.index)
+
+    total_seconds_above_sla = float((((above) & in_edge_cluster).astype(float) * dt_next).sum())
+
+    # Time attribution by cluster
+    seconds_in_edge_cluster = float((in_edge_cluster.astype(float) * dt_next).sum())
+    total_seconds_in_cloud_cluster = float(max(0.0, total_duration_seconds - seconds_in_edge_cluster))
+
+    # Percentage of time below SLA over the entire experiment duration
+    below = (latency < sla)
+    seconds_below_sla = float((below.astype(float) * dt_next).sum())
+    percent_time_below_sla = float(100.0 * seconds_below_sla / total_duration_seconds) if total_duration_seconds > 0.0 else float('nan')
 
     return {
         'num_steps': int(df_exp.shape[0]),
@@ -147,6 +169,8 @@ def _summarize_single_experiment(df_exp: pd.DataFrame, sla: float) -> Dict[str, 
         'peak_latency': peak_latency,
         'num_times_crossed_above_sla': crossings,
         'total_seconds_above_sla': total_seconds_above_sla,
+        'total_seconds_in_cloud_cluster': total_seconds_in_cloud_cluster,
+        'percent_time_below_sla': percent_time_below_sla,
     }
 
 
@@ -176,7 +200,7 @@ def process_approach_per_experiment(
         raise RuntimeError(f"No experiments with data found for {approach_path}")
 
     df = pd.DataFrame(rows)
-    return df[['experiment_id', 'num_steps', 'overall_mean_latency', 'peak_latency', 'num_times_crossed_above_sla', 'total_seconds_above_sla']]
+    return df[['experiment_id', 'num_steps', 'overall_mean_latency', 'peak_latency', 'num_times_crossed_above_sla', 'total_seconds_above_sla', 'total_seconds_in_cloud_cluster', 'percent_time_below_sla']]
 
 
 def main():
@@ -218,6 +242,8 @@ def main():
                 'avg_peak_latency': [float(df_exp['peak_latency'].mean())],
                 'avg_num_times_crossed_above_sla': [float(df_exp['num_times_crossed_above_sla'].mean())],
                 'avg_total_seconds_above_sla': [float(df_exp['total_seconds_above_sla'].mean())],
+                'avg_total_seconds_in_cloud_cluster': [float(df_exp['total_seconds_in_cloud_cluster'].mean())],
+                'avg_percent_time_below_sla': [float(df_exp['percent_time_below_sla'].mean())],
             })
             approach_summaries.append(df_summary)
             print(f"Processed {approach}: {df_exp.shape[0]} experiments")
