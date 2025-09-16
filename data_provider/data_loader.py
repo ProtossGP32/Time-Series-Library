@@ -1378,17 +1378,19 @@ class Dataset_LR_Pred(Dataset):
       - Averaging numeric features
       - Taking the last value for categorical features
     Builds the exact LR features used by fixed coefficients and returns a
-    single sample tensor of shape (feature_dim,).
+    single sample for inference. Now supports two LR variants (edge/cloud)
+    with different feature sets. Returns (feature_tensor, is_edge_flag).
     """
     FEATURE_ORDER = [
-        "node_mem_usage",
-        "number_pipelines",
-        "cluster_x_pipelines",
-        "cluster_x_node_mem",
+        "num__node_mem_usage",
+        "num__number_pipelines",
+        "num__node_cpu_usage",
         "node_cpu_x_server_cpu",
     ]
 
-    CLUSTER_REF_VALUE = "fd7816db-7948-4602-af7a-1d51900792a7"
+    # Explicit cluster IDs
+    EDGE_CLUSTER_ID = "eb0e3eaa-b668-4ad6-bc10-2bb0eb7da259"
+    CLOUD_CLUSTER_ID = "fd7816db-7948-4602-af7a-1d51900792a7"
 
     def __init__(self, args, root_path, data_path):
         self.args = args
@@ -1419,21 +1421,27 @@ class Dataset_LR_Pred(Dataset):
         avg_node_cpu = float(window["node_cpu_usage"].mean())
         avg_server_cpu = float(window["pipelines_server_cpu_usage"].mean())
         last_cluster = str(window["cluster"].iloc[-1])
-        cluster_flag = 1.0 if last_cluster == self.CLUSTER_REF_VALUE else 0.0
+        if last_cluster == self.EDGE_CLUSTER_ID:
+            is_edge = 1
+        elif last_cluster == self.CLOUD_CLUSTER_ID:
+            is_edge = 0
+        else:
+            # Default to cloud if unknown cluster id
+            is_edge = 0
 
         feats = {
-            "node_mem_usage": avg_node_mem,
-            "number_pipelines": avg_num_pipelines,
-            "cluster_x_pipelines": cluster_flag * avg_num_pipelines,
-            "cluster_x_node_mem": cluster_flag * avg_node_mem,
+            "num__node_mem_usage": avg_node_mem,
+            "num__number_pipelines": avg_num_pipelines,
+            "num__node_cpu_usage": avg_node_cpu,
             "node_cpu_x_server_cpu": avg_node_cpu * avg_server_cpu,
         }
 
         # Store vector in fixed order
         self.vector = np.array([feats[name] for name in self.FEATURE_ORDER], dtype=np.float32)
+        self.cluster_is_edge = is_edge
 
     def __len__(self):
         return 1
 
     def __getitem__(self, index):
-        return torch.from_numpy(self.vector)
+        return torch.from_numpy(self.vector), torch.tensor(self.cluster_is_edge, dtype=torch.int64)

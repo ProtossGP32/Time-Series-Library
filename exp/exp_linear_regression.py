@@ -10,26 +10,40 @@ from data_provider.data_loader import Dataset_LR_Pred
 class Exp_Linear_Regression:
     """
     Lightweight production inference experiment for a fixed-coefficient
-    Linear Regression model. Aggregates the last `seq_len` rows into a
-    single feature vector by:
-      - Averaging numerical columns
-      - Taking the last value for categorical columns
-    Then constructs interaction features and predicts a single scalar,
-    repeated across `pred_len` steps.
+    Linear Regression model with two variants: edge and cloud. The
+    dataset aggregates the last `seq_len` rows into a single feature
+    vector using the following features and also yields a flag indicating
+    whether the cluster is edge (1) or cloud (0):
+      - num__node_mem_usage
+      - num__number_pipelines
+      - num__node_cpu_usage
+      - node_cpu_x_server_cpu
+    A linear combination (no intercept) is applied using the respective
+    coefficients, and the scalar is repeated across `pred_len` steps.
     """
 
+    # Fixed order must match Dataset_LR_Pred.FEATURE_ORDER
+    FEATURE_ORDER = [
+        "num__node_mem_usage",
+        "num__number_pipelines",
+        "num__node_cpu_usage",
+        "node_cpu_x_server_cpu",
+    ]
+
     # Coefficients learned offline (no intercept; model without constant)
-    WEIGHTS = {
-        "node_mem_usage": 4.975791e-12,
-        "number_pipelines": -7.332159e-02,
-        "cluster_x_pipelines": -5.780488e-03,
-        "cluster_x_node_mem": 1.159748e-11,
-        "node_cpu_x_server_cpu": 4.546697e-03,
+    WEIGHTS_EDGE = {
+        "num__node_mem_usage": 2.369795e-11,
+        "num__number_pipelines": 2.421762e-01,
+        "num__node_cpu_usage": -1.535301e-01,
+        "node_cpu_x_server_cpu": 6.267838e-03,
     }
 
-    # Cluster ID used in one-hot encoding during training (only this OHE column kept)
-    CLUSTER_REF_OHE_COL = "cat__cluster_fd7816db-7948-4602-af7a-1d51900792a7"
-    CLUSTER_REF_VALUE = "fd7816db-7948-4602-af7a-1d51900792a7"
+    WEIGHTS_CLOUD = {
+        "num__node_mem_usage": 5.512106e-12,
+        "num__number_pipelines": -8.996437e-03,
+        "num__node_cpu_usage": 2.404007e-03,
+        "node_cpu_x_server_cpu": 7.405377e-04,
+    }
 
     # Required base columns in the CSV
     REQUIRED_COLUMNS = [
@@ -46,10 +60,11 @@ class Exp_Linear_Regression:
 
     # All data preparation happens in data_loader.Dataset_LR_Pred
 
-    def _predict_single(self, feats: dict) -> float:
+    def _predict_single(self, feats: dict, is_edge: bool) -> float:
         # Linear combination, no intercept
+        weights = self.WEIGHTS_EDGE if is_edge else self.WEIGHTS_CLOUD
         y = 0.0
-        for name, weight in self.WEIGHTS.items():
+        for name, weight in weights.items():
             y += weight * float(feats.get(name, 0.0))
         # Cap to minimum of 0
         return float(max(y, 0.0))
@@ -61,15 +76,12 @@ class Exp_Linear_Regression:
         """
         ds = Dataset_LR_Pred(self.args, self.args.root_path, self.args.data_path)
         loader = DataLoader(ds, batch_size=1, shuffle=False, drop_last=False, num_workers=0)
-        for vec in loader:
-            feats = {
-                "node_mem_usage": float(vec[0, 0].item()),
-                "number_pipelines": float(vec[0, 1].item()),
-                "cluster_x_pipelines": float(vec[0, 2].item()),
-                "cluster_x_node_mem": float(vec[0, 3].item()),
-                "node_cpu_x_server_cpu": float(vec[0, 4].item()),
-            }
-            y_hat = self._predict_single(feats)
+        for vec_batch, is_edge_batch in loader:
+            # vec_batch shape: (1, feature_dim); is_edge_batch shape: (1,)
+            vec = vec_batch[0]
+            is_edge = bool(is_edge_batch[0].item())
+            feats = {name: float(vec[idx].item()) for idx, name in enumerate(self.FEATURE_ORDER)}
+            y_hat = self._predict_single(feats, is_edge)
             break
 
         pred = np.full((1, self.args.pred_len, 1), y_hat, dtype=float)
