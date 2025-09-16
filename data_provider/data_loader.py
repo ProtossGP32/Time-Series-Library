@@ -1445,3 +1445,76 @@ class Dataset_LR_Pred(Dataset):
 
     def __getitem__(self, index):
         return torch.from_numpy(self.vector), torch.tensor(self.cluster_is_edge, dtype=torch.int64)
+
+class Dataset_RF_Pred(Dataset):
+    """
+    Prediction-only dataset for Random Forest.
+    - No scaling
+    - One-hot encode only the specified 'cloud' cluster ID as a single binary feature.
+    - Aggregates the last `seq_len` rows for numeric features using their mean,
+      and uses the last row for time and cluster features.
+    """
+
+    FEATURE_ORDER_FALLBACK = [
+        "num__node_cpu_usage",
+        "num__node_mem_usage",
+        "num__number_pipelines",
+        "num__pipelines_server_cpu_usage",
+        "num__pipelines_server_mem_usage",
+        "num__quarter_15m",
+        "num__hour",
+        "cat__cluster_fd7816db-7948-4602-af7a-1d51900792a7",
+    ]
+
+    CLOUD_CLUSTER_ID = "fd7816db-7948-4602-af7a-1d51900792a7"
+
+    REQUIRED_COLUMNS = [
+        "date",
+        "cluster",
+        "node_cpu_usage",
+        "node_mem_usage",
+        "number_pipelines",
+        "pipelines_server_cpu_usage",
+        "pipelines_server_mem_usage",
+    ]
+
+    def __init__(self, args, root_path, data_path, feature_order=None):
+        self.args = args
+        self.root_path = root_path
+        self.data_path = data_path
+        self.seq_len = getattr(args, "seq_len", 10)
+        self.feature_order = feature_order or self.FEATURE_ORDER_FALLBACK
+        self._build_vector()
+
+    def _build_vector(self):
+        csv_path = os.path.join(self.root_path, self.data_path)
+        df = pd.read_csv(csv_path)
+
+        missing = [c for c in self.REQUIRED_COLUMNS if c not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns in {csv_path}: {missing}")
+
+        window = df.tail(self.seq_len).copy()
+        last_row = window.iloc[-1]
+        ts = pd.to_datetime(last_row["date"])  # time features from last row
+
+        feats = {
+            # numeric feature means over the window
+            "num__node_cpu_usage": float(window["node_cpu_usage"].mean()),
+            "num__node_mem_usage": float(window["node_mem_usage"].mean()),
+            "num__number_pipelines": float(window["number_pipelines"].mean()),
+            "num__pipelines_server_cpu_usage": float(window["pipelines_server_cpu_usage"].mean()),
+            "num__pipelines_server_mem_usage": float(window["pipelines_server_mem_usage"].mean()),
+            # time and categorical from the last row
+            "num__quarter_15m": int(ts.minute // 15),
+            "num__hour": int(ts.hour),
+            "cat__cluster_fd7816db-7948-4602-af7a-1d51900792a7": int(str(last_row["cluster"]) == self.CLOUD_CLUSTER_ID),
+        }
+
+        self.vector = torch.tensor([feats[name] for name in self.feature_order], dtype=torch.float32)
+
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, index):
+        return self.vector

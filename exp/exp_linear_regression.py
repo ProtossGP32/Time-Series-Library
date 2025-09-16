@@ -10,7 +10,7 @@ from data_provider.data_loader import Dataset_LR_Pred
 class Exp_Linear_Regression:
     """
     Lightweight production inference experiment for a fixed-coefficient
-    Linear Regression model with two variants: edge and cloud. The
+    2 Linear Regression model with two variants: edge and cloud. The
     dataset aggregates the last `seq_len` rows into a single feature
     vector using the following features and also yields a flag indicating
     whether the cluster is edge (1) or cloud (0):
