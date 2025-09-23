@@ -12,6 +12,7 @@ from exp.exp_imputation import Exp_Imputation
 from exp.exp_long_term_forecasting import Exp_Long_Term_Forecast
 from exp.exp_short_term_forecasting import Exp_Short_Term_Forecast
 from exp.exp_linear_regression import Exp_Linear_Regression
+from exp.exp_random_forest import Exp_Random_Forest
 from utils.print_args import print_args
 
 if __name__ == "__main__":
@@ -456,6 +457,8 @@ if __name__ == "__main__":
         Exp = Exp_Classification
     elif args.task_name == "linear_regression":
         Exp = Exp_Linear_Regression
+    elif args.task_name == "random_forest": 
+        Exp = Exp_Random_Forest
     else:
         Exp = Exp_Long_Term_Forecast
 
@@ -534,69 +537,89 @@ if __name__ == "__main__":
         if args.data_iterate:
             # Get list of all CSV files in root_path
             csv_files = [f for f in os.listdir(args.root_path) if f.endswith('.csv')]
-            
+
             # Create output directory if it doesn't exist
             if not os.path.exists(args.output_path):
                 os.makedirs(args.output_path)
-        
-            # Initialize list to collect all predictions
-            all_predictions_data = []
-        
+
+            # Directory to store merged inputs
+            merged_inputs_dir = os.path.join(args.output_path, 'merged_inputs')
+            if not os.path.exists(merged_inputs_dir):
+                os.makedirs(merged_inputs_dir)
+
+            # Read and concatenate all files, then sort and drop duplicate timestamps
+            import pandas as pd
+            frames = []
             for file in csv_files:
-                print(f"\nProcessing file: {file}")
-                # Update data_path for current file
-                args.data_path = file
-                print(args.data)
+                input_file_path = os.path.join(args.root_path, file)
+                try:
+                    df = pd.read_csv(input_file_path)
+                except Exception as e:
+                    print(f"Skipping file due to read error {file}: {e}")
+                    continue
+                if 'date' not in df.columns:
+                    print(f"Skipping file missing required column 'date': {file}")
+                    continue
+                frames.append(df)
+
+            if not frames:
+                print("No valid CSV files found to merge for inference.")
+            else:
+                merged_df = pd.concat(frames, ignore_index=True)
+                merged_df['date'] = pd.to_datetime(merged_df['date'])
+                merged_df = merged_df.sort_values('date')
+                merged_df = merged_df.drop_duplicates(subset=['date'], keep='last')
+
+                # Write merged file
+                merged_filename = "merged_all.csv"
+                merged_path = os.path.join(merged_inputs_dir, merged_filename)
+                merged_df.to_csv(merged_path, index=False)
+
+                # Predict using the merged file (Dataset will take last seq_len rows)
+                saved_root = args.root_path
+                args.root_path = merged_inputs_dir
+                args.data_path = merged_filename
                 exp = Exp(args)  # set experiments
                 print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
                 preds = exp.predict(setting)
-                
-                # Extract cluster name and timestamps from the input data
-                input_file_path = os.path.join(args.root_path, file)
-                import pandas as pd
-                df = pd.read_csv(input_file_path)
-                cluster_name = df['cluster'].iloc[0]  # Get the first cluster value
-                
-                # Get the last timestamp and generate future timestamps
-                last_timestamp = pd.to_datetime(df['date'].iloc[-1])
-                # Generate future timestamps based on frequency (30 seconds intervals)
+
+                # Future timestamps based on last time in merged data (30-second steps)
+                last_timestamp = merged_df['date'].iloc[-1]
                 future_timestamps = pd.date_range(
-                    start=last_timestamp + pd.Timedelta(seconds=30),
-                    periods=args.pred_len,
+                    start=last_timestamp + pd.Timedelta(seconds=30),\
+                    periods=args.pred_len,\
                     freq='30S'
                 )
-                
+
                 # Prepare predictions for CSV format
                 print(preds.shape)
                 print(preds)
-                # preds shape is (1, 10, 1), so we need to flatten it
-                predictions_flat = preds.reshape(-1)  # Flatten to 1D array
+                predictions_flat = preds.reshape(-1)
                 print(predictions_flat.shape)
-                
-                # Add predictions to the collection with cluster info and timestamps
+
+                # Use the last row's cluster for output tagging if present
+                cluster_name = str(merged_df['cluster'].iloc[-1]) if 'cluster' in merged_df.columns else ''
+
+                all_predictions_data = []
                 for i, pred_value in enumerate(predictions_flat):
-                    all_predictions_data.append({
+                    row = {
                         'date': future_timestamps[i].strftime('%Y-%m-%dT%H:%M:%S'),
-                        'cluster': cluster_name,
-                        args.target: pred_value
-                    })
-                
-                # Store predictions with filename as key (for console output)
-                all_predictions[file] = preds
+                        args.target: float(pred_value)
+                    }
+                    if cluster_name:
+                        row['cluster'] = cluster_name
+                    all_predictions_data.append(row)
+
+                # Store predictions with key 'merged_all' (for console output)
+                all_predictions['merged_all'] = preds
                 torch.cuda.empty_cache()
-        
-            # Create single DataFrame with all predictions
-            if all_predictions_data:
-                predictions_df = pd.DataFrame(all_predictions_data)
-                
+                # Restore original root_path
+                args.root_path = saved_root
+
                 # Save all predictions to a single CSV file
+                predictions_df = pd.DataFrame(all_predictions_data)
                 output_filename = "all_predictions.csv"
                 output_path = os.path.join(args.output_path, output_filename)
                 predictions_df.to_csv(output_path, index=False)
                 print(f"\nSaved all predictions to {output_path}")
-                print(f"Total predictions: {len(predictions_df)} rows from {len(csv_files)} clusters")
-        
-            # Print all predictions
-            for file, pred in all_predictions.items():
-                print(f"\nPredictions for {file}:")
-                print(file, pred)
+                print(f"Total predictions: {len(predictions_df)} rows")
