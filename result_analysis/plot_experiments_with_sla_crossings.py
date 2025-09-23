@@ -31,6 +31,9 @@ from matplotlib.lines import Line2D
 
 
 TARGET_COLUMN = 'pipelines_status_realtime_pipeline_latency'
+REFERENCE_CLUSTER_ID = 'fd7816db-7948-4602-af7a-1d51900792a7'
+_CLOUD_LABEL = 'Cloud'
+_EDGE_LABEL = 'Edge'
 
 
 @dataclass
@@ -145,19 +148,7 @@ def _plot_experiment(
     plt.figure(figsize=(14, 6))
 
     colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['C0', 'C1', 'C2', 'C3', 'C4'])
-
-    # Determine cluster -> linestyle mapping (solid for first, dashed for second/others)
     unique_clusters = list(pd.unique(clusters))
-    cluster_to_ls = {}
-    if len(unique_clusters) == 0:
-        cluster_to_ls = {}
-    elif len(unique_clusters) == 1:
-        cluster_to_ls[unique_clusters[0]] = '-'
-    else:
-        cluster_to_ls[unique_clusters[0]] = '-'
-        cluster_to_ls[unique_clusters[1]] = '--'
-        for c in unique_clusters[2:]:
-            cluster_to_ls[c] = '--'
 
     # Plot runs where either SLA segment id or cluster changes
     run_start = 0
@@ -172,7 +163,7 @@ def _plot_experiment(
         if end_run:
             color = colors[seg_ids.iloc[run_start] % len(colors)]
             cluster_value = clusters.iloc[run_start]
-            linestyle = cluster_to_ls.get(cluster_value, '-')
+            linestyle = '-' if cluster_value == REFERENCE_CLUSTER_ID else '--'
             plt.plot(t.iloc[run_start:i], y.iloc[run_start:i], color=color, linestyle=linestyle, linewidth=2)
             run_start = i
 
@@ -184,19 +175,12 @@ def _plot_experiment(
     plt.ylabel('Realtime latency')
     plt.grid(True, alpha=0.3)
 
-    # Legend for line styles only (clusters)
-    legend_elements = []
-    added_styles = set()
-    for c in unique_clusters:
-        ls = cluster_to_ls.get(c, '-')
-        if ls in added_styles:
-            continue
-        legend_elements.append(Line2D([0], [0], color='black', lw=2, linestyle=ls, label=c))
-        added_styles.add(ls)
-        if len(added_styles) >= 2:
-            break
-    if legend_elements:
-        plt.legend(handles=legend_elements, loc='best')
+    # Consistent legend for line styles across files
+    legend_elements = [
+        Line2D([0], [0], color='black', lw=2, linestyle='-', label=_CLOUD_LABEL),
+        Line2D([0], [0], color='black', lw=2, linestyle='--', label=_EDGE_LABEL),
+    ]
+    plt.legend(handles=legend_elements, loc='best')
     plt.tight_layout()
 
     os.makedirs(output_dir, exist_ok=True)
@@ -209,7 +193,7 @@ def _plot_experiment(
 
 def main():
     parser = argparse.ArgumentParser(description='Plot per-experiment latency with color changes at SLA rising-edge crossings')
-    parser.add_argument('--root', required=True, help='Path to comparison_of_approaches root directory')
+    parser.add_argument('--root', default='/home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/comparison_of_approaches', help='Path to comparison_of_approaches root directory')
     parser.add_argument('--approach', default=None, help='If provided, only process this approach (subfolder name)')
     parser.add_argument('--jobs', default=None, help='Comma-separated list of jobs to process (default: discover all)')
     parser.add_argument('--sla', type=float, default=0.2, help='SLA threshold for latency; default 0.2')
