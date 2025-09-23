@@ -417,6 +417,12 @@ if __name__ == "__main__":
     default="./workflow/results/",
     help="path to save prediction outputs",
     )
+    parser.add_argument(
+        "--output_len",
+        type=int,
+        default=None,
+        help="If set (< pred_len), only keep the last output_len prediction steps",
+    )
 
     args = parser.parse_args()
     if args.categorical_cols:
@@ -582,12 +588,27 @@ if __name__ == "__main__":
                 exp = Exp(args)  # set experiments
                 print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
                 preds = exp.predict(setting)
+                # If output_len is set, keep only the last output_len steps (time dimension)
+                output_len = getattr(args, 'output_len', None)
+                try:
+                    if (
+                        output_len is not None
+                        and isinstance(output_len, int)
+                        and hasattr(preds, 'shape')
+                        and preds.ndim == 3
+                        and 0 < output_len < preds.shape[1]
+                    ):
+                        preds = preds[:, -output_len:, :]
+                except Exception as e:
+                    print(f"Warning: could not apply output_len slicing: {e}")
 
                 # Future timestamps based on last time in merged data (30-second steps)
                 last_timestamp = merged_df['date'].iloc[-1]
+                # Number of steps equals the predictions returned (after any slicing)
+                n_steps = int(preds.shape[1]) if hasattr(preds, 'shape') else int(args.pred_len)
                 future_timestamps = pd.date_range(
-                    start=last_timestamp + pd.Timedelta(seconds=30),\
-                    periods=args.pred_len,\
+                    start=last_timestamp + pd.Timedelta(seconds=30),
+                    periods=n_steps,
                     freq='30S'
                 )
 
