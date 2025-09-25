@@ -579,6 +579,41 @@ class Dataset_Pred(Dataset):
             cols.remove("date")
         df_raw = df_raw[["date"] + cols + [self.target]]
 
+        # Ensure chronological order
+        try:
+            df_raw["date"] = pd.to_datetime(df_raw["date"])
+            df_raw = df_raw.sort_values("date").reset_index(drop=True)
+        except Exception:
+            pass
+
+        # Fill NaNs: numeric -> 0, categorical -> earliest non-null value (no empty-string fallbacks)
+        categorical_features = []
+        if self.categorical_cols:
+            categorical_features = [c for c in cols if c in self.categorical_cols and c in df_raw.columns]
+            for c in categorical_features:
+                if not df_raw[c].notna().any():
+                    raise ValueError(f"No non-null value found for categorical column '{c}' in file '{self.data_path}'")
+                first_valid_idx = df_raw[c].first_valid_index()
+                earliest_val = df_raw.loc[first_valid_idx, c]
+                df_raw[c] = df_raw[c].fillna(earliest_val)
+
+        numeric_candidates = [c for c in df_raw.columns if c not in ["date"] + categorical_features]
+        for c in numeric_candidates:
+            try:
+                if pd.api.types.is_numeric_dtype(df_raw[c]):
+                    df_raw[c] = df_raw[c].fillna(0)
+            except Exception:
+                pass
+
+        # Left-pad to seq_len by repeating earliest row when not enough history
+        if len(df_raw) < self.seq_len:
+            if len(df_raw) == 0:
+                raise ValueError(f"No rows available in file '{self.data_path}' for prediction; cannot pad an empty dataset")
+            pad_count = self.seq_len - len(df_raw)
+            earliest_row = df_raw.iloc[[0]].copy()
+            pad_df = pd.concat([earliest_row.copy() for _ in range(pad_count)], ignore_index=True)
+            df_raw = pd.concat([pad_df, df_raw], ignore_index=True)
+
         border1 = len(df_raw) - self.seq_len
         border2 = len(df_raw)
 
