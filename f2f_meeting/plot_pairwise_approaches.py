@@ -18,6 +18,13 @@ Usage example:
     --experiment_2 <approach_2_json> \
     --sla 0.2 \
     --out_dir result_analysis/pair_plots
+
+
+Example prompt for f2f plot:
+
+python f2f_meeting/plot_pairwise_approaches.py --root f2f_meeting/comparison_of_approaches/ --approach_1 reactive --approach_2 random_forest --job job-0 --experiment_1 validation-reactive-updated-job-0_2025-09-14T160419_2025-09-15T000421_created_at_2025-09-15T000423.json --experiment_2 validation-random-forest-job-0_2025-09-18T230054_2025-09-19T070056_created_at_2025-09-19T070058.json --sla 0.2 --out_dir f2f_meeting
+
+
 """
 
 import argparse
