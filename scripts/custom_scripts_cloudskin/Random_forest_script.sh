@@ -3,10 +3,10 @@ seq_len=10
 pred_len=10
 
 python -u run.py \
-  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive_linear_regression/5_min_results_random_forest \
+  --output_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/30m_inference/results \
   --task_name random_forest \
   --is_training 0 \
-  --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/partial_validation_dataset_proactive_linear_regression/5_min_intervals \
+  --root_path /home/jolivera/Documents/CloudSkin/Time-Series-Library/dataset/30m_inference \
   --data_path preprocessed_data.csv \
   --data_iterate True \
   --model_id random_forest_n_estimators_100_max_depth_10 \
