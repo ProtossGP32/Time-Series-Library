@@ -17,12 +17,14 @@ Usage example:
     --experiment_1 <approach_1_json> \
     --experiment_2 <approach_2_json> \
     --sla 0.2 \
-    --out_dir result_analysis/pair_plots
+    --out_dir result_analysis/pair_plots \
+    --animate True
+    --animation_format mp4
 
 
 Example prompt for f2f plot:
 
-python f2f_meeting/plot_pairwise_approaches.py --root f2f_meeting/comparison_of_approaches/ --approach_1 reactive --approach_2 random_forest --job job-0 --experiment_1 validation-reactive-updated-job-0_2025-09-14T160419_2025-09-15T000421_created_at_2025-09-15T000423.json --experiment_2 validation-random-forest-job-0_2025-09-18T230054_2025-09-19T070056_created_at_2025-09-19T070058.json --sla 0.2 --out_dir f2f_meeting
+python f2f_meeting/plot_pairwise_approaches.py --root f2f_meeting/comparison_of_approaches/ --approach_1 reactive --approach_2 random_forest --job job-0 --experiment_1 validation-reactive-updated-job-0_2025-09-14T160419_2025-09-15T000421_created_at_2025-09-15T000423.json --experiment_2 validation-random-forest-job-0_2025-09-18T230054_2025-09-19T070056_created_at_2025-09-19T070058.json --sla 0.2 --out_dir f2f_meeting --animate True --animation_format mp4
 
 
 """
@@ -37,7 +39,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-
+from matplotlib.animation import FuncAnimation
+from matplotlib.animation import PillowWriter, FFMpegWriter
+from datetime import datetime
 
 TARGET_COLUMN = 'pipelines_status_realtime_pipeline_latency'
 CLOUD_CLUSTER_ID = 'fd7816db-7948-4602-af7a-1d51900792a7'
@@ -146,6 +150,8 @@ def main():
     parser.add_argument('--experiment_2', required=True, help='Exact JSON filename in approach_2 raw dir')
     parser.add_argument('--sla', type=float, default=0.2, help='SLA threshold for latency; default 0.2')
     parser.add_argument('--out_dir', default='result_analysis/pair_plots', help='Directory to write the plot image')
+    parser.add_argument('--animate', type=bool, default=False, help='Create an animated plot')
+    parser.add_argument('--animation_format', type=str, choices=['gif', 'mp4'], default='gif', help='Set animation format')
     args = parser.parse_args()
 
     a1_path = os.path.join(args.root, args.approach_1)
@@ -199,11 +205,16 @@ def main():
                 ax.plot(x_arr[run_start:i], y_arr[run_start:i], color=color, linestyle='-', linewidth=2)
                 run_start = i
 
+    # Calculate SLA violations
+    sla_violations = _contiguous_runs(pd.Series(avoided_mask))
+
     # Approach 1 subplot
     _plot_by_cluster(ax1, x, y1, c1)
     ax1.axhline(y=args.sla, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
-    for start, end in _contiguous_runs(pd.Series(avoided_mask)):
+
+    for start, end in sla_violations:
         ax1.axvspan(start, end, color='gold', alpha=0.25)
+    
     ax1.set_title(f"{args.approach_1} Approach")
     ax1.set_ylabel('Realtime latency')
     ax1.grid(True, alpha=0.3)
@@ -218,8 +229,10 @@ def main():
     # Approach 2 subplot
     _plot_by_cluster(ax2, x, y2, c2)
     ax2.axhline(y=args.sla, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
-    for start, end in _contiguous_runs(pd.Series(avoided_mask)):
+
+    for start, end in sla_violations:
         ax2.axvspan(start, end, color='gold', alpha=0.25)
+    
     ax2.set_title(f"{args.approach_2} Approach")
     ax2.set_xlabel('Step index (aligned by min length)')
     ax2.set_ylabel('Realtime latency')
@@ -235,6 +248,106 @@ def main():
     fig.savefig(out_path, dpi=200)
     plt.close(fig)
     print(f"Saved plot: {out_path}")
+
+    # =============
+    # Animated plot
+    # =============
+    if args.animate:
+
+        def _reset_plots():
+            """
+            Reset plot canvas
+            """
+            # Clear data for both subplots
+            ax1.cla()
+            ax2.cla()
+
+            # Update axes limits
+            # ax1.set_xlim(
+            #     df1["step_index"].min(),
+            #     df1["step_index"].max()
+            # )
+            # ax2.set_xlim(
+            #     df2["step_index"].min(),
+            #     df2["step_index"].max()
+            # )
+
+            ax1.set_ylim(
+                df1[TARGET_COLUMN].min(),
+                df1[TARGET_COLUMN].max()
+            )
+            ax2.set_ylim(
+                df2[TARGET_COLUMN].min(),
+                df2[TARGET_COLUMN].max()
+            )
+
+            # Set up additional lines in top plot:
+            # - Horizontal red line for SLA
+            ax1.axhline(y=args.sla, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
+            ax2.axhline(y=args.sla, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
+
+            # Set static labels
+            ax1.set_ylabel('Realtime latency')
+            ax2.set_xlabel('Step index (aligned by min length)')
+            ax2.set_ylabel('Realtime latency')
+
+            # Set grid
+            ax1.grid(True, alpha=0.3)
+            ax2.grid(True, alpha=0.3)
+
+            # Set legend
+            ax1.legend(handles=legend_elements, loc='best')
+            ax2.legend(handles=legend_elements, loc='best')
+
+            return [ax1, ax2]
+
+
+        # Create an animation function to update the plot at each step
+        def update(frame: int):
+            # DEBUG: print current frame in terminal
+            _start_time = datetime.now()
+            # Reset plots
+            ax1, ax2 = _reset_plots()
+
+            # Update plot with latency values for the current step
+            ax1.set_title(f"{args.approach_1} Approach (Frame {frame})")
+            ax2.set_title(f"{args.approach_2} Approach (Frame {frame})")
+
+            # Set data for each subplot
+            _plot_by_cluster(ax1, x[:frame + 1], y1[:frame + 1], c1)
+            _plot_by_cluster(ax2, x[:frame + 1], y2[:frame + 1], c2)
+
+            # Plot Time windows for avoided SLA violations
+            # - Disable it if this is already enabled in the init function
+            for start, end in sla_violations:
+                # Only draw segments prior or equal to the current frame
+                if (frame >= start):
+                    # Render the full segment if frame > end; else, only up to the current frame
+                    last_frame = min(frame, end)
+                    ax1.axvspan(start, last_frame, color='gold', alpha=0.25)
+                    ax2.axvspan(start, last_frame, color='gold', alpha=0.25)
+                    
+            _end_time = datetime.now()
+            print(f'\rLast processed frame: {frame}. Process time: {_end_time - _start_time}. Total animation time: {_end_time - begin_anim_time}', end='', flush=True)
+
+        # Create an animation object
+        print(f"Frames length: {len(df1)}")
+        print("Saving animated plot...")
+        begin_anim_time = datetime.now()
+        ani = FuncAnimation(
+            fig, func=update, frames=len(df1), repeat=False,
+            init_func=_reset_plots, blit=False, interval=200
+            )
+        print("")
+        fig.tight_layout()
+        # Save the animated plot
+        animated_out_path = os.path.join(args.out_dir, f"pairplot_two_panels__{safe_1}__VS__{safe_2}_animated.{args.animation_format}")
+        match args.animation_format:
+            case "gif":
+                ani.save(animated_out_path, writer=PillowWriter(fps=15))
+            case "mp4":
+                ani.save(animated_out_path, writer=FFMpegWriter(fps=15))
+        print(f"Saved animated plot to {animated_out_path}")
 
 
 if __name__ == '__main__':
